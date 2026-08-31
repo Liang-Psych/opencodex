@@ -235,5 +235,17 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
     // Case 5: newline-separated options are preserved verbatim.
     const r5 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "t", question: "q", options: "删除\n填补\n保留" }), "AskUser"));
     expect(r5.options).toEqual([{ label: "删除" }, { label: "填补" }, { label: "保留" }]);
+
+    // Case 6: stringified JSON array — the observed "label" ghost rows.
+    // JSON.parse must win so key tokens never surface as options.
+    const r6 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "选项演示", question: "这是一个选项选择的演示,请任选一项:", options: '[{"label":"选项 A:继续数据分析任务"},{"label":"选项 B:开始一个编码任务"}]' }), "AskUser"));
+    expect(r6.options).toEqual([
+      { label: "选项 A:继续数据分析任务" },
+      { label: "选项 B:开始一个编码任务" },
+    ]);
+
+    // Case 7: half-formed JSON string keeps key tokens out of the fallback.
+    const r7 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "t", question: "q", options: '"label": "甲", "label": "乙"' }), "AskUser"));
+    expect(r7.options).toEqual([{ label: "甲" }, { label: "乙" }]);
   });
 });

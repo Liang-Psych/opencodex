@@ -97,9 +97,12 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
       const lines = s.split(/\r?\n/).map(cleanOptionLabel).filter(Boolean);
       if (lines.length > 1) return lines;
       const quoted: string[] = [];
+      // JSON key tokens must never surface as options when falling back to
+      // quoted-segment extraction on a half-formed JSON string.
+      const keyTokens = new Set(["label", "description", "recommended", "text", "value", "options"]);
       for (const m of s.matchAll(/"([^"]+)"|“([^”]+)”/g)) {
         const q = (m[1] ?? m[2] ?? "").trim();
-        if (q) quoted.push(q);
+        if (q && !keyTokens.has(q.toLowerCase())) quoted.push(q);
       }
       if (quoted.length > 1) return quoted;
       const pieces = s.split(/[,;；]/).map(cleanOptionLabel).filter(Boolean);
@@ -127,11 +130,24 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
       if ("options" in parsed) {
         let opts = parsed.options;
         if (typeof opts === "string") {
-          opts = parseAskUserOptionsString(opts);
+          // Models frequently stringify the whole options array (valid JSON
+          // or half-formed prose). Try a real JSON parse first so object
+          // options keep their label/description structure; fall back to the
+          // prose heuristics only when that fails.
+          try {
+            const jsonOpts = JSON.parse(opts);
+            if (Array.isArray(jsonOpts)) opts = jsonOpts;
+            else opts = parseAskUserOptionsString(opts);
+          } catch (_e) {
+            opts = parseAskUserOptionsString(opts);
+          }
         }
         if (Array.isArray(opts)) {
           parsed.options = opts.map((o: any) => {
-            if (typeof o === "string") return { label: cleanOptionLabel(o) };
+            if (typeof o === "string") {
+              const lbl = cleanOptionLabel(o).replace(/^label\s*[:：]\s*/i, "");
+              return { label: lbl };
+            }
             if (o && typeof o === "object") {
               const label = typeof o.label === "string" && o.label.trim() !== ""
                 ? o.label
