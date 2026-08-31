@@ -160,17 +160,29 @@ export function messagesToQoderFormat(parsed: OcxParsedRequest): Array<Record<st
       }
     } else if (msg.role === "assistant") {
       const aMsg = msg as any;
-      const textParts = aMsg.content?.filter((p: any) => p.type === "text") || [];
-      const toolCalls = aMsg.content?.filter((p: any) => p.type === "toolCall") || [];
       const chatMsg: Record<string, any> = { role: "assistant" };
-      if (textParts.length > 0) chatMsg.content = textParts.map((p: any) => p.text).join("");
-      if (toolCalls.length > 0) {
-        chatMsg.tool_calls = toolCalls.map((tc: any, idx: number) => ({
-          index: idx,
-          id: tc.id || randomUUID(),
-          type: "function",
-          function: { name: tc.name, arguments: JSON.stringify(tc.arguments || {}) }
-        }));
+      if (typeof aMsg.content === "string") {
+        chatMsg.content = aMsg.content;
+      } else if (Array.isArray(aMsg.content)) {
+        const textParts = aMsg.content.filter((p: any) => p.type === "text" || typeof p === "string");
+        const toolCalls = aMsg.content.filter((p: any) => p.type === "toolCall");
+        if (textParts.length > 0) {
+          chatMsg.content = textParts.map((p: any) => (typeof p === "string" ? p : p.text || "")).join("");
+        } else if (toolCalls.length === 0) {
+          chatMsg.content = "";
+        }
+        if (toolCalls.length > 0) {
+          chatMsg.tool_calls = toolCalls.map((tc: any, idx: number) => ({
+            index: idx,
+            id: tc.id || randomUUID(),
+            type: "function",
+            function: { name: tc.name, arguments: typeof tc.arguments === "string" ? tc.arguments : JSON.stringify(tc.arguments || {}) }
+          }));
+        }
+      } else if (aMsg.content) {
+        chatMsg.content = String(aMsg.content);
+      } else {
+        chatMsg.content = "";
       }
       out.push(chatMsg as any);
     } else if (msg.role === "tool" || (msg as any).role === "toolResult" || (msg as any).role === "tool_result") {

@@ -162,4 +162,25 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
       content: "Part 1 Part 2",
     });
   });
+  test("message serializer handles string assistant content and array assistant content", () => {
+    const req: OcxParsedRequest = {
+      modelId: "GLM-5.3-Flash",
+      context: {
+        messages: [
+          { role: "user", content: "hello" },
+          { role: "assistant", content: "Hi! How can I help?" } as any,
+          { role: "user", content: "follow up" },
+        ],
+      },
+      stream: false,
+      options: {},
+    };
+
+    const formatted = messagesToQoderFormat(req);
+    expect(formatted.length).toBe(3);
+    expect(formatted[1]).toEqual({
+      role: "assistant",
+      content: "Hi! How can I help?",
+    });
+  });
 });
