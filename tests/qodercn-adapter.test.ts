@@ -247,5 +247,12 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
     // Case 7: half-formed JSON string keeps key tokens out of the fallback.
     const r7 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "t", question: "q", options: '"label": "甲", "label": "乙"' }), "AskUser"));
     expect(r7.options).toEqual([{ label: "甲" }, { label: "乙" }]);
+
+    // Case 8: skill tool — schema is {skill: string}; recover from alias keys.
+    const r8 = JSON.parse(normalizeToolArguments(JSON.stringify({ name: "modeling" }), "skill"));
+    expect(r8.skill).toBe("modeling");
+    expect("name" in r8).toBe(false);
+    const r8b = JSON.parse(normalizeToolArguments(JSON.stringify({ skill: "cleaning" }), "skill"));
+    expect(r8b.skill).toBe("cleaning");
   });
 });

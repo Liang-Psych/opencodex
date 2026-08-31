@@ -166,7 +166,22 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
       }
     }
 
-   function sanitize(obj: any, keyName?: string): any {
+    if (toolName === "skill") {
+      // Positron's skill tool schema is {skill: string} — the name of the skill
+      // to load. Weak models omit it or stash the name under an alias key
+      // (name/skill_name/...). Recover it from any plausible single alias.
+      if (!parsed.skill || typeof parsed.skill !== "string" || parsed.skill.trim() === "") {
+        for (const k of ["name", "skill_name", "skillName", "id", "value", "text", "tool", "code"]) {
+          if (typeof parsed[k] === "string" && parsed[k].trim() !== "") {
+            parsed.skill = parsed[k].trim();
+            delete parsed[k];
+            break;
+          }
+        }
+      }
+    }
+
+    function sanitize(obj: any, keyName?: string): any {
       if (obj === null || obj === undefined) return obj;
       if (typeof obj === "string") {
         const trimmed = obj.trim();
