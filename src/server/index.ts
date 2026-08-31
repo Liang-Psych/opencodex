@@ -1329,11 +1329,32 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
           const supportsVision = modalities.includes("image");
           return {
             capabilities: {
+              object: "model_capabilities",
+              type: "chat",
+              limits: {
+                max_context_window_tokens: 1000000,
+                max_output_tokens: 64000,
+                max_prompt_tokens: 950000,
+                ...(supportsVision ? {
+                  vision: {
+                    max_prompt_image_size: 31457280,
+                    max_prompt_images: 10,
+                    supported_media_types: [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp",
+                      "image/gif",
+                      "application/pdf",
+                    ],
+                  },
+                } : {}),
+              },
               supports: {
                 vision: supportsVision,
                 tool_calls: true,
                 streaming: true,
                 structured_outputs: true,
+                parallel_tool_calls: true,
               },
             },
             input_modalities: modalities,
