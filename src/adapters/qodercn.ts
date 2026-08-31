@@ -70,8 +70,18 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
       if (!("intent" in parsed) || parsed.intent === undefined) {
         parsed.intent = parsed.description || parsed.thought || "Execute code in console";
       }
+      const codeStr = typeof parsed.code === "string" ? parsed.code : "";
       if (!("capturePlot" in parsed) || parsed.capturePlot === undefined) {
-        parsed.capturePlot = false;
+        parsed.capturePlot = /ggplot|plot\(|hist\(|barplot\(|boxplot\(|plt\.|sns\./i.test(codeStr);
+      }
+      if (!("language" in parsed) || !parsed.language || typeof parsed.language !== "string") {
+        if (/import\s+\w+|def\s+\w+|plt\.|pd\.|np\.|print\(|from\s+\w+\s+import/i.test(codeStr)) {
+          parsed.language = "python";
+        } else {
+          parsed.language = "r";
+        }
+      } else {
+        parsed.language = parsed.language.toLowerCase().trim();
       }
     }
 

@@ -120,7 +120,7 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
 
     const input3 = JSON.stringify({ code: "print(1)", description: "Test run" });
     const res3 = JSON.parse(normalizeToolArguments(input3, "executeCode"));
-    expect(res3).toEqual({ code: "print(1)", description: "Test run", intent: "Test run", capturePlot: false });
+    expect(res3).toEqual({ code: "print(1)", description: "Test run", intent: "Test run", capturePlot: false, language: "python" });
   });
 
   test("message serializer maps multimodal image parts and text-only content arrays", () => {
