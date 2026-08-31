@@ -112,16 +112,34 @@ export function messagesToQoderFormat(parsed: OcxParsedRequest): Array<Record<st
   }
 
   for (const msg of parsed.context.messages) {
-    if (msg.role === "user") {
+    if (msg.role === "user" || (msg as any).role === "developer") {
+      const role = (msg as any).role === "developer" ? "developer" : "user";
       if (typeof msg.content === "string") {
-        out.push({ role: "user", content: msg.content });
+        out.push({ role, content: msg.content });
       } else if (Array.isArray(msg.content)) {
-        const parts = msg.content.map(p => {
-          if (p.type === "text") return { type: "text", text: p.text };
-          if (p.type === "image") return { type: "image_url", image_url: { url: p.imageUrl } };
-          return p;
-        });
-        out.push({ role: "user", content: parts });
+        const hasImages = msg.content.some((p: any) => p.type === "image" && p.imageUrl);
+        if (!hasImages) {
+          const text = msg.content
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text || "")
+            .join("");
+          out.push({ role, content: text });
+        } else {
+          const parts = msg.content.map((p: any) => {
+            if (p.type === "text") return { type: "text", text: p.text || "" };
+            if (p.type === "image" && p.imageUrl) {
+              return {
+                type: "image_url",
+                image_url: {
+                  url: p.imageUrl,
+                  ...(p.detail ? { detail: p.detail } : {}),
+                },
+              };
+            }
+            return p;
+          });
+          out.push({ role, content: parts });
+        }
       }
     } else if (msg.role === "assistant") {
       const aMsg = msg as any;
@@ -284,6 +302,44 @@ export function decryptServerResponse(dataStr: string): string {
   }
 }
 
+interface CachedAuthFields {
+  authFields: { encrypt_user_info?: string; key?: string };
+  expiresAt: number;
+}
+const authFieldsCache = new Map<string, CachedAuthFields>();
+const AUTH_FIELDS_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+export function getOrGenerateAuthFields(accountId: string): { encrypt_user_info?: string; key?: string } {
+  const now = Date.now();
+  const cached = authFieldsCache.get(accountId);
+  if (cached && cached.expiresAt > now && cached.authFields.encrypt_user_info && cached.authFields.key) {
+    return cached.authFields;
+  }
+
+  const stackG = P_.__wbindgen_add_to_stack_pointer(-16);
+  const payloadG = JSON.stringify({ uid: accountId, organization_id: "", organization_tags: [], data_policy_agreed: true });
+  const ptrG = I5(payloadG);
+  const lenG = PI;
+  P_.generate_runtime_auth_fields(stackG, ptrG, lenG);
+  const rG0 = nQ().getInt32(stackG + 0, true);
+  const rG1 = nQ().getInt32(stackG + 4, true);
+  P_.__wbindgen_add_to_stack_pointer(16);
+  const authFieldsStr = Ah(rG0, rG1);
+  P_.__wbindgen_export4(rG0, rG1, 1);
+
+  let authFields: { encrypt_user_info?: string; key?: string } = {};
+  try {
+    authFields = JSON.parse(authFieldsStr);
+  } catch (_e) {
+    void _e;
+  }
+
+  if (authFields.encrypt_user_info && authFields.key) {
+    authFieldsCache.set(accountId, { authFields, expiresAt: now + AUTH_FIELDS_TTL_MS });
+  }
+  return authFields;
+}
+
 export function createQoderCnAdapter(provider: OcxProviderConfig): ProviderAdapter {
   return {
     name: "qodercn",
@@ -321,24 +377,8 @@ export function createQoderCnAdapter(provider: OcxProviderConfig): ProviderAdapt
       const rawModel = parsed.modelId;
       const wireModel = provider.modelMap?.[rawModel] ?? rawModel;
 
-      // 1. Generate runtime authentication fields dynamically in-memory
-      const stackG = P_.__wbindgen_add_to_stack_pointer(-16);
-      const payloadG = JSON.stringify({ uid: effectiveAccountId, organization_id: "", organization_tags: [], data_policy_agreed: true });
-      const ptrG = I5(payloadG);
-      const lenG = PI;
-      P_.generate_runtime_auth_fields(stackG, ptrG, lenG);
-      const rG0 = nQ().getInt32(stackG + 0, true);
-      const rG1 = nQ().getInt32(stackG + 4, true);
-      P_.__wbindgen_add_to_stack_pointer(16);
-      const authFieldsStr = Ah(rG0, rG1);
-      P_.__wbindgen_export4(rG0, rG1, 1);
-
-      let authFields: { encrypt_user_info?: string; key?: string } = {};
-      try {
-        authFields = JSON.parse(authFieldsStr);
-      } catch (_e) {
-        void _e;
-      }
+      // 1. Resolve runtime authentication fields via cache
+      const authFields = getOrGenerateAuthFields(effectiveAccountId);
 
       const fullUserInfo = {
         uid: effectiveAccountId,

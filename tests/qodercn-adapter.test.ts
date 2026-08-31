@@ -122,4 +122,44 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
     const res3 = JSON.parse(normalizeToolArguments(input3, "executeCode"));
     expect(res3).toEqual({ code: "print(1)", description: "Test run", intent: "Test run", capturePlot: false });
   });
+
+  test("message serializer maps multimodal image parts and text-only content arrays", () => {
+    const multimodalReq: OcxParsedRequest = {
+      modelId: "GLM-5.3-Flash",
+      context: {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is in this image?" },
+              { type: "image", imageUrl: "data:image/png;base64,iVBORw0KGgo=", detail: "high" },
+            ],
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Part 1 " },
+              { type: "text", text: "Part 2" },
+            ],
+          },
+        ],
+      },
+      stream: false,
+      options: {},
+    };
+
+    const formatted = messagesToQoderFormat(multimodalReq);
+    expect(formatted.length).toBe(2);
+    expect(formatted[0]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "What is in this image?" },
+        { type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0KGgo=", detail: "high" } },
+      ],
+    });
+    expect(formatted[1]).toEqual({
+      role: "user",
+      content: "Part 1 Part 2",
+    });
+  });
 });
