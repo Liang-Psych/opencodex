@@ -418,7 +418,8 @@ export function createQoderCnAdapter(provider: OcxProviderConfig): ProviderAdapt
       const effectiveMachineId = machineId || ctx.machineId;
       const accountName = (provider as any).accountName || (provider as any).email || "qoder-user";
       const rawModel = parsed.modelId;
-      const wireModel = provider.modelMap?.[rawModel] ?? rawModel;
+      const bareModel = rawModel.startsWith("qodercn/") ? rawModel.slice(8) : (rawModel.includes("/") ? rawModel.split("/").pop()! : rawModel);
+      const wireModel = provider.modelMap?.[rawModel] ?? provider.modelMap?.[bareModel] ?? bareModel;
 
       // 1. Resolve runtime authentication fields via cache
       const authFields = getOrGenerateAuthFields(effectiveAccountId);
