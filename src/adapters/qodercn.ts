@@ -130,20 +130,23 @@ export function messagesToQoderFormat(parsed: OcxParsedRequest): Array<Record<st
 
   for (const msg of parsed.context.messages) {
     if (msg.role === "user" || (msg as any).role === "developer") {
-      const role = (msg as any).role === "developer" ? "developer" : "user";
+      // Qoder's gateway only accepts system/user/assistant/tool roles. The
+      // Responses-API "developer" role must be mapped to "system", otherwise
+      // Qoder answers with an empty stream that surfaces as a premature close.
+      const role = (msg as any).role === "developer" ? "system" : "user";
       if (typeof msg.content === "string") {
         out.push({ role, content: msg.content });
       } else if (Array.isArray(msg.content)) {
         const hasImages = msg.content.some((p: any) => p.type === "image" && p.imageUrl);
         if (!hasImages) {
           const text = msg.content
-            .filter((p: any) => p.type === "text")
+            .filter((p: any) => p.type === "text" || p.type === "input_text")
             .map((p: any) => p.text || "")
             .join("");
           out.push({ role, content: text });
         } else {
           const parts = msg.content.map((p: any) => {
-            if (p.type === "text") return { type: "text", text: p.text || "" };
+            if (p.type === "text" || p.type === "input_text") return { type: "text", text: p.text || "" };
             if (p.type === "image" && p.imageUrl) {
               return {
                 type: "image_url",

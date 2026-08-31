@@ -183,4 +183,23 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
       content: "Hi! How can I help?",
     });
   });
+
+  test("message serializer maps Responses-API developer role to system and accepts input_text parts", () => {
+    const req: OcxParsedRequest = {
+      modelId: "GLM-5.3-Flash",
+      context: {
+        messages: [
+          { role: "developer", content: [{ type: "input_text", text: "You are a helpful assistant." }] } as any,
+          { role: "user", content: [{ type: "input_text", text: "hi" }] } as any,
+        ],
+      },
+      stream: false,
+      options: {},
+    };
+
+    const formatted = messagesToQoderFormat(req);
+    expect(formatted.length).toBe(2);
+    expect(formatted[0]).toEqual({ role: "system", content: "You are a helpful assistant." });
+    expect(formatted[1]).toEqual({ role: "user", content: "hi" });
+  });
 });
