@@ -1364,7 +1364,7 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
         };
 
         const formatModelDisplayName = (provider: string, modelId: string, customDisplayName?: string) => {
-          if (customDisplayName) return customDisplayName;
+          if (customDisplayName) return customDisplayName.replace(/-/g, " ").replace(/\s+/g, " ").trim();
           const base = modelId.includes("/") ? modelId.split("/").pop()! : modelId;
           const map: Record<string, string> = {
             "gemini-3.7-flash": "Gemini 3.7 Flash",
@@ -1372,23 +1372,23 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
             "gemini-3.1-flash-image": "Gemini 3.1 Flash Image",
             "claude-sonnet-4-6": "Claude Sonnet 4.6",
             "claude-opus-4-6-thinking": "Claude Opus 4.6 Thinking",
-            "gpt-5.6-luna": "GPT-5.6 Luna",
-            "gpt-5.6-sol": "GPT-5.6 Sol",
-            "gpt-5.6-terra": "GPT-5.6 Terra",
-            "GLM-5.3-Flash": "GLM-5.3 Flash",
-            "glm-5.3-flash": "GLM-5.3 Flash",
-            "GLM-5.3": "GLM-5.3",
-            "glm-5.3": "GLM-5.3",
-            "GLM-5.2": "GLM-5.2",
-            "glm-5.2": "GLM-5.2",
+            "gpt-5.6-luna": "GPT 5.6 Luna",
+            "gpt-5.6-sol": "GPT 5.6 Sol",
+            "gpt-5.6-terra": "GPT 5.6 Terra",
+            "GLM-5.3-Flash": "GLM 5.3 Flash",
+            "glm-5.3-flash": "GLM 5.3 Flash",
+            "GLM-5.3": "GLM 5.3",
+            "glm-5.3": "GLM 5.3",
+            "GLM-5.2": "GLM 5.2",
+            "glm-5.2": "GLM 5.2",
             "Qwen3.8-Flash": "Qwen 3.8 Flash",
             "qwen3.8-flash": "Qwen 3.8 Flash",
             "Qwen3.8-Max": "Qwen 3.8 Max",
             "qwen3.8-max": "Qwen 3.8 Max",
-            "DeepSeek-V4-Flash": "DeepSeek-V4 Flash",
-            "deepseek-v4-flash": "DeepSeek-V4 Flash",
-            "DeepSeek-V4-Pro": "DeepSeek-V4 Pro",
-            "deepseek-v4-pro": "DeepSeek-V4 Pro",
+            "DeepSeek-V4-Flash": "DeepSeek V4 Flash",
+            "deepseek-v4-flash": "DeepSeek V4 Flash",
+            "DeepSeek-V4-Pro": "DeepSeek V4 Pro",
+            "deepseek-v4-pro": "DeepSeek V4 Pro",
             "Kimi-K3": "Kimi K3",
             "kimi-k3": "Kimi K3",
             "Kimi-K2.7-Code": "Kimi K2.7 Code",
@@ -1397,7 +1397,7 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
             "mimo-v2.5": "MiMo v2.5",
             "mimo-v2.5-pro": "MiMo v2.5 Pro",
           };
-          const friendly = map[base] || base;
+          const friendly = map[base] || base.replace(/-/g, " ").replace(/\s+/g, " ").trim();
           if (provider === "combo") return friendly + " Combo";
           return friendly;
         };
