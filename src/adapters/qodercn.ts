@@ -85,21 +85,28 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
       }
     }
 
-    function sanitize(obj: any): any {
+    function sanitize(obj: any, keyName?: string): any {
       if (obj === null || obj === undefined) return obj;
       if (typeof obj === "string") {
-        const lower = obj.trim().toLowerCase();
+        const trimmed = obj.trim();
+        const lower = trimmed.toLowerCase();
         if (lower === "true") return true;
         if (lower === "false") return false;
+        if (keyName && /^(timeout|timeout_?ms|port|line|limit|turns?|turn_?limit|width|height|fig_?width|fig_?height|max_?tokens|max_?output_?tokens|duration|delay|interval|retries|attempts|count|size)$/i.test(keyName)) {
+          if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+            const num = Number(trimmed);
+            if (!Number.isNaN(num)) return num;
+          }
+        }
         return obj;
       }
       if (Array.isArray(obj)) {
-        return obj.map(sanitize);
+        return obj.map((item) => sanitize(item, keyName));
       }
       if (typeof obj === "object") {
         const res: Record<string, any> = {};
         for (const [k, v] of Object.entries(obj)) {
-          res[k] = sanitize(v);
+          res[k] = sanitize(v, k);
         }
         return res;
       }

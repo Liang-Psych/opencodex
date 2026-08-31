@@ -114,9 +114,9 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
     const res1 = JSON.parse(normalizeToolArguments(input1));
     expect(res1).toEqual({ title: "Test Title", question: "Is this working?" });
 
-    const input2 = JSON.stringify({ show_details: "true", nested: { flag: "false" } });
+    const input2 = JSON.stringify({ show_details: "true", nested: { flag: "false", timeout: "30000" } });
     const res2 = JSON.parse(normalizeToolArguments(input2));
-    expect(res2).toEqual({ show_details: true, nested: { flag: false } });
+    expect(res2).toEqual({ show_details: true, nested: { flag: false, timeout: 30000 } });
 
     const input3 = JSON.stringify({ code: "print(1)", description: "Test run" });
     const res3 = JSON.parse(normalizeToolArguments(input3, "executeCode"));
