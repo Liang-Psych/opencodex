@@ -173,12 +173,26 @@ export function messagesToQoderFormat(parsed: OcxParsedRequest): Array<Record<st
         }));
       }
       out.push(chatMsg as any);
-    } else if (msg.role === "tool") {
+    } else if (msg.role === "tool" || (msg as any).role === "toolResult" || (msg as any).role === "tool_result") {
       const tMsg = msg as any;
+      let textContent = "";
+      if (typeof tMsg.content === "string") {
+        textContent = tMsg.content;
+      } else if (Array.isArray(tMsg.content)) {
+        textContent = tMsg.content
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text || "")
+          .join("");
+        if (!textContent && tMsg.content.length > 0) {
+          textContent = JSON.stringify(tMsg.content);
+        }
+      } else if (tMsg.content) {
+        textContent = JSON.stringify(tMsg.content);
+      }
       out.push({
         role: "tool",
-        tool_call_id: tMsg.toolCallId || tMsg.toolName || "tool",
-        content: typeof tMsg.content === "string" ? tMsg.content : JSON.stringify(tMsg.content)
+        tool_call_id: tMsg.toolCallId || tMsg.id || tMsg.toolName || "tool",
+        content: textContent,
       });
     }
   }

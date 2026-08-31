@@ -33,7 +33,7 @@ const parsed: OcxParsedRequest = {
           { type: "toolCall", id: "call_123", name: "calculator", arguments: { a: 1 } },
         ],
       },
-      { role: "tool", toolCallId: "call_123", content: "Result: 2" } as any,
+      { role: "toolResult", toolCallId: "call_123", content: [{ type: "text", text: "Result: 2" }] } as any,
     ],
   },
   stream: false,
