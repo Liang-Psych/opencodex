@@ -1398,9 +1398,8 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
             "mimo-v2.5-pro": "MiMo v2.5 Pro",
           };
           const friendly = map[base] || base;
-          if (provider === "combo") return friendly + " (Combo)";
-          if (provider === "openai" || !provider) return friendly;
-          return friendly + " (" + provider + ")";
+          if (provider === "combo") return friendly + " Combo";
+          return friendly;
         };
 
         const nativeModelRow = (id: string, metadataId = id) => ({
