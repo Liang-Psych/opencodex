@@ -1171,7 +1171,7 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
           }
           throw error;
         }
-        const { accountBoundNativeOpenAiSlugsBySelector, applyNativeVisibility, buildCatalogEntries, configuredNativeAliasSlugs, desktopAllowlistSuppressedNativeSlugs, disabledNativeSlugs, exactComboCatalogSlugs, loadCatalogTemplate, NATIVE_OPENAI_MODELS, nativeContextLimits, nativeOpenAiSlugs, nativeReasoningEfforts, nativeDefaultReasoningEffort, orderForSubagents, filterCatalogVisibleModels, shouldIncludeAccountBoundNativeOpenAi, shouldIncludeNativeOpenAi, uniqueCatalogModelsForRawPublicList, visibleCodexAccountSelectors, visibleNativeSlugs, desktopVisibleNativeSlugs } = await import("../codex/catalog");
+        const { accountBoundNativeOpenAiSlugsBySelector, applyNativeVisibility, buildCatalogEntries, configuredNativeAliasSlugs, desktopAllowlistSuppressedNativeSlugs, disabledNativeSlugs, exactComboCatalogSlugs, loadCatalogTemplate, NATIVE_OPENAI_MODELS, nativeContextLimits, nativeInputModalities, nativeOpenAiSlugs, nativeReasoningEfforts, nativeDefaultReasoningEffort, orderForSubagents, filterCatalogVisibleModels, shouldIncludeAccountBoundNativeOpenAi, shouldIncludeNativeOpenAi, uniqueCatalogModelsForRawPublicList, visibleCodexAccountSelectors, visibleNativeSlugs, desktopVisibleNativeSlugs } = await import("../codex/catalog");
         const { ACCOUNT_GATED_NATIVE_OPENAI_MODELS } = await import("../codex/catalog/native-models");
         const includeNativeOpenAi = shouldIncludeNativeOpenAi(config);
         const includeAccountBoundNativeOpenAi = shouldIncludeAccountBoundNativeOpenAi(config);
@@ -1325,7 +1325,25 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
             reasoning_efforts: efforts.map(effort => grokEffortOption(effort, effort === defaultEffort)),
           };
         };
+        const buildModelCapabilities = (modalities: string[]) => {
+          const supportsVision = modalities.includes("image");
+          return {
+            capabilities: {
+              supports: {
+                vision: supportsVision,
+                tool_calls: true,
+                streaming: true,
+                structured_outputs: true,
+              },
+            },
+            input_modalities: modalities,
+            modalities,
+            supports_vision: supportsVision,
+          };
+        };
+
         const nativeModelRow = (id: string, metadataId = id) => ({
+            ...buildModelCapabilities(nativeInputModalities(metadataId)),
             id,
             object: "model",
             created: 0,
@@ -1361,6 +1379,7 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
           ...await Promise.all(uniqueCatalogModelsForRawPublicList(goOrdered).map(async m => {
             const publicId = m.alias ?? `${m.provider}/${m.id}`;
             const isCombo = m.provider === "combo" && exactComboSlugs.has(publicId);
+            const modalities = (Array.isArray(m.inputModalities) && m.inputModalities.length > 0) ? m.inputModalities : ["text", "image"];
             const provider = config.providers[m.provider];
             const effective = provider
               ? (await import("../providers/default-aliases")).effectiveModelAliases(
@@ -1377,6 +1396,7 @@ export function startServer(port?: number, deps: StartServerDeps = {}): Server<W
               // owned_by as an adapter selector, so a virtual combo must name that wire
               // adapter rather than the internal catalog authority marker.
               owned_by: isCombo ? "openai" : (m.owned_by ?? m.provider),
+              ...buildModelCapabilities(modalities),
               ...(isCombo ? { is_combo: true } : {}),
               ...(effective ? { alias_of: `${provider?.alias || m.provider}/${effective.alias}` } : {}),
               ...grokEffortFields(m.reasoningEfforts ?? [], m.defaultReasoningEffort),
