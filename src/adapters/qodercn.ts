@@ -80,10 +80,32 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
         } else {
           parsed.language = "r";
         }
-     } else {
-       parsed.language = parsed.language.toLowerCase().trim();
-     }
-   }
+      } else {
+        parsed.language = parsed.language.toLowerCase().trim();
+      }
+    }
+
+    const cleanOptionLabel = (s: string): string =>
+      s.replace(/^[\s"“”「」『』]+|[\s"“”「」『』]+$/g, "").trim();
+
+    // Parse a stringified options list without destroying Chinese prose:
+    // prefer newline-separated items, then quoted segments, then fall back
+    // to comma splitting only when every piece is short. Enumeration marks
+    // (、) are never treated as top-level separators since they routinely
+    // appear inside a single Chinese option.
+    const parseAskUserOptionsString = (s: string): string[] => {
+      const lines = s.split(/\r?\n/).map(cleanOptionLabel).filter(Boolean);
+      if (lines.length > 1) return lines;
+      const quoted: string[] = [];
+      for (const m of s.matchAll(/"([^"]+)"|“([^”]+)”/g)) {
+        const q = (m[1] ?? m[2] ?? "").trim();
+        if (q) quoted.push(q);
+      }
+      if (quoted.length > 1) return quoted;
+      const pieces = s.split(/[,;；]/).map(cleanOptionLabel).filter(Boolean);
+      if (pieces.length > 1 && pieces.every((p) => p.length > 0 && p.length <= 24)) return pieces;
+      return [cleanOptionLabel(s)];
+    };
 
     if (toolName && /^ask[_-]?user$/i.test(toolName)) {
       // Positron's AskUser schema: title (string, required), question (string,
@@ -105,11 +127,11 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
       if ("options" in parsed) {
         let opts = parsed.options;
         if (typeof opts === "string") {
-          opts = opts.split(/\r?\n|[,;、]/).map((s: string) => s.trim()).filter(Boolean);
+          opts = parseAskUserOptionsString(opts);
         }
         if (Array.isArray(opts)) {
           parsed.options = opts.map((o: any) => {
-            if (typeof o === "string") return { label: o };
+            if (typeof o === "string") return { label: cleanOptionLabel(o) };
             if (o && typeof o === "object") {
               const label = typeof o.label === "string" && o.label.trim() !== ""
                 ? o.label

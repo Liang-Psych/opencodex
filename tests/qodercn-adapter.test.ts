@@ -223,5 +223,17 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
     expect("options" in r3).toBe(false);
     expect(r3.title).toBe("t");
     expect(r3.question).toBe("q");
+
+    // Case 4: quoted Chinese options must not be split on enumeration marks.
+    const r4 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "下一步", question: "演示已结束。请选择接下来要做的事：", options: "\"继续 diamonds 分析:检查切工、颜色、净度对价格的影响\", \"处理那 20 条尺寸为 0 的异常记录(决定删除或填补)\", \"开始一个新任务(我会描述需求)\"" }), "AskUser"));
+    expect(r4.options).toEqual([
+      { label: "继续 diamonds 分析:检查切工、颜色、净度对价格的影响" },
+      { label: "处理那 20 条尺寸为 0 的异常记录(决定删除或填补)" },
+      { label: "开始一个新任务(我会描述需求)" },
+    ]);
+
+    // Case 5: newline-separated options are preserved verbatim.
+    const r5 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "t", question: "q", options: "删除\n填补\n保留" }), "AskUser"));
+    expect(r5.options).toEqual([{ label: "删除" }, { label: "填补" }, { label: "保留" }]);
   });
 });
