@@ -608,6 +608,9 @@ export function createQoderCnAdapter(provider: OcxProviderConfig): ProviderAdapt
 
         if (bodyPayload.choices && Array.isArray(bodyPayload.choices)) {
           for (const choice of bodyPayload.choices) {
+            if (choice.delta?.content || choice.delta?.reasoning_content || choice.delta?.tool_calls) {
+              streamSucceeded = true;
+            }
             if (choice.delta?.reasoning_content) {
               emit({ type: "thinking_delta", thinking: choice.delta.reasoning_content });
             }
@@ -696,7 +699,9 @@ export function createQoderCnAdapter(provider: OcxProviderConfig): ProviderAdapt
         }
 
         flushPendingTools();
-        if (!sawTerminalSignal && !emittedTerminal) {
+        if (streamSucceeded) {
+          sawTerminalSignal = true;
+        } else if (!sawTerminalSignal && !emittedTerminal) {
           emittedTerminal = true;
           emit({ type: "error", message: "Qoder stream terminated prematurely without completion marker." });
           return;
