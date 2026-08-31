@@ -202,4 +202,26 @@ describe("Qoder CN Adapter Trust Boundaries & Protocol", () => {
     expect(formatted[0]).toEqual({ role: "system", content: "You are a helpful assistant." });
     expect(formatted[1]).toEqual({ role: "user", content: "hi" });
   });
+
+  test("normalizeToolArguments repairs AskUser title and options for Positron schema", () => {
+    // Case 1: title missing, options stringified (the observed failure mode).
+    const r1 = JSON.parse(normalizeToolArguments(JSON.stringify({ question: "Which column casing should we use for the cleaned dataset?", options: "snake_case, keep_original, ALL_CAPS" }), "AskUser"));
+    expect(r1.title).toBe("Which column casing should we use");
+    expect(r1.question).toBe("Which column casing should we use for the cleaned dataset?");
+    expect(Array.isArray(r1.options)).toBe(true);
+    expect(r1.options).toEqual([{ label: "snake_case" }, { label: "keep_original" }, { label: "ALL_CAPS" }]);
+
+    // Case 2: options as object array with extra keys keeps label/description/recommended.
+    const r2 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "Impute age?", question: "How should missing ages be handled?", options: [{ label: "Median", recommended: "true" }, { text: "Drop rows", description: "lose 3 rows" }] }), "ask_user"));
+    expect(r2.options).toEqual([
+      { label: "Median", recommended: true },
+      { label: "Drop rows", description: "lose 3 rows" },
+    ]);
+
+    // Case 3: scalar options are dropped (schema allows omission, not garbage).
+    const r3 = JSON.parse(normalizeToolArguments(JSON.stringify({ title: "t", question: "q", options: 42 }), "AskUser"));
+    expect("options" in r3).toBe(false);
+    expect(r3.title).toBe("t");
+    expect(r3.question).toBe("q");
+  });
 });

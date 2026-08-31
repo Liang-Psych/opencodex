@@ -80,12 +80,55 @@ export function normalizeToolArguments(argsStr: string, toolName?: string): stri
         } else {
           parsed.language = "r";
         }
-      } else {
-        parsed.language = parsed.language.toLowerCase().trim();
+     } else {
+       parsed.language = parsed.language.toLowerCase().trim();
+     }
+   }
+
+    if (toolName && /^ask[_-]?user$/i.test(toolName)) {
+      // Positron's AskUser schema: title (string, required), question (string,
+      // required), options (optional array of {label, description?, recommended?}).
+      // Weak models omit title or stringify options; repair both so the client-side
+      // Zod validation accepts the call instead of bouncing it back to the model.
+      if (!parsed.title || typeof parsed.title !== "string" || parsed.title.trim() === "") {
+        const src = typeof parsed.question === "string" ? parsed.question.trim() : "";
+        if (src) {
+          const short = src.split(/\s+/).slice(0, 6).join(" ");
+          parsed.title = short.length > 48 ? short.slice(0, 45).trimEnd() + "..." : short;
+        } else {
+          parsed.title = "Question";
+        }
+      }
+      if (!parsed.question || typeof parsed.question !== "string" || parsed.question.trim() === "") {
+        parsed.question = parsed.title;
+      }
+      if ("options" in parsed) {
+        let opts = parsed.options;
+        if (typeof opts === "string") {
+          opts = opts.split(/\r?\n|[,;、]/).map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (Array.isArray(opts)) {
+          parsed.options = opts.map((o: any) => {
+            if (typeof o === "string") return { label: o };
+            if (o && typeof o === "object") {
+              const label = typeof o.label === "string" && o.label.trim() !== ""
+                ? o.label
+                : typeof o.text === "string" ? o.text : String(o.value ?? "");
+              const out: Record<string, any> = { label };
+              if (typeof o.description === "string" && o.description.trim() !== "") out.description = o.description;
+              if (o.recommended === true || o.recommended === "true") out.recommended = true;
+              return out;
+            }
+            return { label: String(o) };
+          });
+        } else {
+          // Schema allows omitting options entirely; a malformed scalar is worse.
+          delete parsed.options;
+        }
       }
     }
 
-    function sanitize(obj: any, keyName?: string): any {
+   function sanitize(obj: any, keyName?: string): any {
       if (obj === null || obj === undefined) return obj;
       if (typeof obj === "string") {
         const trimmed = obj.trim();
