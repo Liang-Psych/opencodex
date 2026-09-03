@@ -188,3 +188,63 @@ export function applyEffortCap(
   if (raw?.reasoning && typeof raw.reasoning === "object") raw.reasoning.effort = resolved;
   return { from: requested, to: resolved, subagent };
 }
+
+/**
+ * Resolve any pinned reasoning effort configured for this model or provider.
+ * Priority order:
+ * 1. Provider model-specific pinned effort (`provider.modelPinnedReasoningEfforts[modelId]`)
+ * 2. Provider-wide pinned effort (`provider.pinnedReasoningEffort`)
+ * 3. Global config model-specific pinned effort (`config.modelPinnedEfforts[modelId]`)
+ *
+ * Returns undefined when no valid pinned effort tier is configured.
+ */
+export function resolvePinnedEffort(
+  route: { provider: OcxProviderConfig; modelId: string },
+  parsedModelId?: string,
+  config?: OcxConfig,
+): string | undefined {
+  const prov = route.provider;
+  const rawProvModel = modelRecordValue(prov.modelPinnedReasoningEfforts, route.modelId)
+    ?? (parsedModelId ? modelRecordValue(prov.modelPinnedReasoningEfforts, parsedModelId) : undefined);
+  if (rawProvModel && (isCodexReasoningEffort(rawProvModel) || rawProvModel === "none" || rawProvModel === "minimal")) {
+    return rawProvModel;
+  }
+  if (prov.pinnedReasoningEffort && (isCodexReasoningEffort(prov.pinnedReasoningEffort) || prov.pinnedReasoningEffort === "none" || prov.pinnedReasoningEffort === "minimal")) {
+    return prov.pinnedReasoningEffort;
+  }
+  if (config?.modelPinnedEfforts) {
+    const rawGlobal = modelRecordValue(config.modelPinnedEfforts, route.modelId)
+      ?? (parsedModelId ? modelRecordValue(config.modelPinnedEfforts, parsedModelId) : undefined);
+    if (rawGlobal && (isCodexReasoningEffort(rawGlobal) || rawGlobal === "none" || rawGlobal === "minimal")) {
+      return rawGlobal;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Apply any pinned reasoning effort to the parsed request and raw body in BOTH shapes.
+ * Forces the reasoning effort regardless of what the caller sent, or when the caller sent none.
+ * Returns the rewrite transition { from, to } for logging, or null if no pinned effort applied.
+ */
+export function applyPinnedEffort(
+  parsed: OcxParsedRequest,
+  route: { provider: OcxProviderConfig; modelId: string },
+  config?: OcxConfig,
+): { from: string | undefined; to: string } | null {
+  const pinned = resolvePinnedEffort(route, parsed.modelId, config);
+  if (!pinned) return null;
+  const requested = parsed.options.reasoning;
+  const raw = parsed._rawBody as { reasoning?: { effort?: string } } | undefined;
+  const targetEffort = pinned === "none" ? undefined : pinned;
+  parsed.options.reasoning = targetEffort;
+  if (targetEffort) {
+    if (raw && typeof raw === "object") {
+      if (!raw.reasoning || typeof raw.reasoning !== "object") raw.reasoning = {};
+      raw.reasoning.effort = targetEffort;
+    }
+  } else if (raw?.reasoning && typeof raw.reasoning === "object") {
+    delete raw.reasoning.effort;
+  }
+  return { from: requested, to: pinned };
+}

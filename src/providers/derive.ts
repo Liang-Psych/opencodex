@@ -32,6 +32,8 @@ export interface DerivedKeyLoginProvider {
   reasoningEfforts?: string[];
   modelReasoningEfforts?: Record<string, string[]>;
   modelDefaultReasoningEfforts?: Record<string, string>;
+  pinnedReasoningEffort?: string;
+  modelPinnedReasoningEfforts?: Record<string, string>;
   reasoningEffortMap?: Record<string, string>;
   modelReasoningEffortMap?: Record<string, Record<string, string>>;
   reasoningWireFormat?: OcxProviderConfig["reasoningWireFormat"];
@@ -124,7 +126,7 @@ function sameStringArray(left: readonly string[] | undefined, right: readonly st
 
 type DirectReasoningEffortOverrides = Pick<
   OcxProviderConfig,
-  "thinkingBudgetModels" | "modelReasoningEfforts" | "modelDefaultReasoningEfforts" | "modelReasoningEffortMap"
+  "thinkingBudgetModels" | "modelReasoningEfforts" | "modelDefaultReasoningEfforts" | "pinnedReasoningEffort" | "modelPinnedReasoningEfforts" | "modelReasoningEffortMap"
 >;
 
 function fillFoldedModelDefault<T>(
@@ -194,6 +196,15 @@ export function applyDirectReasoningEffortContracts(
       value => value,
     );
 
+    const pinnedEffort = entry.modelPinnedReasoningEfforts?.[model];
+    prov.modelPinnedReasoningEfforts = fillFoldedModelDefault(
+      prov.modelPinnedReasoningEfforts,
+      explicit.modelPinnedReasoningEfforts,
+      model,
+      pinnedEffort,
+      value => value,
+    );
+
     // An explicit empty model map masks any provider-wide aliases. Without it, a stale global
     // mapping such as xhigh -> max would win before the verified direct ladder can clamp it.
     prov.modelReasoningEffortMap = fillFoldedModelDefault(
@@ -239,6 +250,8 @@ export function providerConfigSeed(entry: ProviderRegistryEntry): OcxProviderCon
     ...(entry.reasoningEfforts ? { reasoningEfforts: [...entry.reasoningEfforts] } : {}),
     ...(entry.modelReasoningEfforts ? { modelReasoningEfforts: cloneRecordOfArrays(entry.modelReasoningEfforts) } : {}),
     ...(entry.modelDefaultReasoningEfforts ? { modelDefaultReasoningEfforts: { ...entry.modelDefaultReasoningEfforts } } : {}),
+    ...(entry.pinnedReasoningEffort !== undefined ? { pinnedReasoningEffort: entry.pinnedReasoningEffort } : {}),
+    ...(entry.modelPinnedReasoningEfforts ? { modelPinnedReasoningEfforts: { ...entry.modelPinnedReasoningEfforts } } : {}),
     ...(entry.reasoningEffortMap ? { reasoningEffortMap: { ...entry.reasoningEffortMap } } : {}),
     ...(entry.modelReasoningEffortMap ? { modelReasoningEffortMap: cloneNestedRecord(entry.modelReasoningEffortMap) } : {}),
     ...(entry.reasoningWireFormat ? { reasoningWireFormat: entry.reasoningWireFormat } : {}),
@@ -299,6 +312,8 @@ export function deriveKeyLoginMap(): Record<string, DerivedKeyLoginProvider> {
       ...(entry.reasoningEfforts ? { reasoningEfforts: [...entry.reasoningEfforts] } : {}),
       ...(entry.modelReasoningEfforts ? { modelReasoningEfforts: cloneRecordOfArrays(entry.modelReasoningEfforts) } : {}),
       ...(entry.modelDefaultReasoningEfforts ? { modelDefaultReasoningEfforts: { ...entry.modelDefaultReasoningEfforts } } : {}),
+      ...(entry.pinnedReasoningEffort !== undefined ? { pinnedReasoningEffort: entry.pinnedReasoningEffort } : {}),
+      ...(entry.modelPinnedReasoningEfforts ? { modelPinnedReasoningEfforts: { ...entry.modelPinnedReasoningEfforts } } : {}),
       ...(entry.reasoningEffortMap ? { reasoningEffortMap: { ...entry.reasoningEffortMap } } : {}),
       ...(entry.modelReasoningEffortMap ? { modelReasoningEffortMap: cloneNestedRecord(entry.modelReasoningEffortMap) } : {}),
       ...(entry.reasoningWireFormat ? { reasoningWireFormat: entry.reasoningWireFormat } : {}),
@@ -466,6 +481,8 @@ export function enrichProviderFromRegistry(name: string, prov: OcxProviderConfig
     thinkingBudgetModels: prov.thinkingBudgetModels,
     modelReasoningEfforts: prov.modelReasoningEfforts,
     modelDefaultReasoningEfforts: prov.modelDefaultReasoningEfforts,
+    pinnedReasoningEffort: prov.pinnedReasoningEffort,
+    modelPinnedReasoningEfforts: prov.modelPinnedReasoningEfforts,
     modelReasoningEffortMap: prov.modelReasoningEffortMap,
   };
   const seed = providerConfigSeed(entry);
@@ -492,6 +509,8 @@ export function enrichProviderFromRegistry(name: string, prov: OcxProviderConfig
   }
   if (!prov.modelReasoningEfforts && seed.modelReasoningEfforts) prov.modelReasoningEfforts = cloneRecordOfArrays(seed.modelReasoningEfforts);
   if (!prov.modelDefaultReasoningEfforts && seed.modelDefaultReasoningEfforts) prov.modelDefaultReasoningEfforts = { ...seed.modelDefaultReasoningEfforts };
+  if (!prov.pinnedReasoningEffort && seed.pinnedReasoningEffort) prov.pinnedReasoningEffort = seed.pinnedReasoningEffort;
+  if (!prov.modelPinnedReasoningEfforts && seed.modelPinnedReasoningEfforts) prov.modelPinnedReasoningEfforts = { ...seed.modelPinnedReasoningEfforts };
   if (!prov.reasoningEffortMap && seed.reasoningEffortMap) prov.reasoningEffortMap = { ...seed.reasoningEffortMap };
   if (!prov.modelReasoningEffortMap && seed.modelReasoningEffortMap) prov.modelReasoningEffortMap = cloneNestedRecord(seed.modelReasoningEffortMap);
   if (prov.reasoningWireFormat === undefined && seed.reasoningWireFormat !== undefined) prov.reasoningWireFormat = seed.reasoningWireFormat;
