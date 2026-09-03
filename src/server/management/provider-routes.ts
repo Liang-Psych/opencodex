@@ -488,15 +488,16 @@ function applyProviderPatchFields(
       if (!isPlainRecord(value)) return { error: "modelPinnedReasoningEfforts must be a plain object or null" };
       const efforts: Record<string, string> = { ...(next.modelPinnedReasoningEfforts ?? {}) };
       for (const [model, effort] of Object.entries(value)) {
-        if (!model.trim()) return { error: "modelPinnedReasoningEfforts keys must be nonblank model ids" };
+        const modelId = model.trim();
+        if (!modelId) return { error: "modelPinnedReasoningEfforts keys must be nonblank model ids" };
         if (effort === null || effort === "") {
-          delete efforts[model];
+          delete efforts[modelId];
           continue;
         }
         if (typeof effort !== "string" || !isDeclaredReasoningEffort(effort)) {
-          return { error: `invalid reasoning effort "${String(effort)}" for model "${model}"` };
+          return { error: `invalid reasoning effort "${String(effort)}" for model "${modelId}"` };
         }
-        efforts[model] = effort;
+        efforts[modelId] = effort;
       }
       if (Object.keys(efforts).length > 0) next.modelPinnedReasoningEfforts = efforts;
       else delete next.modelPinnedReasoningEfforts;

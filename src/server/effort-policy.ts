@@ -227,6 +227,73 @@ export function resolvePinnedEffort(
  * Forces the reasoning effort regardless of what the caller sent, or when the caller sent none.
  * Returns the rewrite transition { from, to } for logging, or null if no pinned effort applied.
  */
+/**
+ * Detect collaboration surface for a native chat request body.
+ * Mirrors Responses collabSurface behavior across function and custom tool representations.
+ */
+export function chatCollabSurface(chatBody: Record<string, unknown>): "v1" | "v2" | null {
+  if (!Array.isArray(chatBody.tools)) return null;
+  let namespacedSpawn = false;
+  let flatSpawn = false;
+  let v1Only = false;
+  let v2Only = false;
+  for (const raw of chatBody.tools) {
+    if (!raw || typeof raw !== "object") continue;
+    const tool = raw as Record<string, unknown>;
+    let name = "";
+    let namespace: string | undefined = undefined;
+    if (tool.type === "function" && tool.function && typeof tool.function === "object") {
+      const fn = tool.function as Record<string, unknown>;
+      name = typeof fn.name === "string" ? fn.name : "";
+    } else if (tool.type === "custom" && tool.custom && typeof tool.custom === "object") {
+      const cust = tool.custom as Record<string, unknown>;
+      name = typeof cust.name === "string" ? cust.name : "";
+    } else if (typeof tool.name === "string") {
+      name = tool.name;
+    }
+    if (typeof tool.namespace === "string") namespace = tool.namespace;
+    if (name === "spawn_agent") {
+      if (namespace) namespacedSpawn = true;
+      else flatSpawn = true;
+    } else if (name === "send_input" || name === "resume_agent" || name === "close_agent") {
+      v1Only = true;
+    } else if (name === "send_message" || name === "followup_task" || name === "interrupt_agent" || name === "list_agents") {
+      v2Only = true;
+    }
+  }
+  if (!namespacedSpawn && !flatSpawn) return null;
+  if (namespacedSpawn && flatSpawn) return null;
+  if (v1Only && v2Only) return null;
+  if (v1Only) return "v1";
+  if (v2Only) return "v2";
+  return namespacedSpawn ? "v1" : "v2";
+}
+
+/**
+ * Apply effortCap to a native chat completions body when admitted by the collaboration gate.
+ */
+export function applyChatEffortCap(
+  chatBody: Record<string, unknown>,
+  headers: Headers,
+  config: OcxConfig,
+  supported?: readonly string[] | undefined,
+): { from: string; to: string; subagent: boolean } | null {
+  const subagent = isThreadSpawnRequest(headers);
+  const cap = effortCapFor(config, subagent);
+  if (!cap) return null;
+  const resolved = resolveCappedEffort(cap, supported);
+  const requested = typeof chatBody.reasoning_effort === "string" ? chatBody.reasoning_effort : undefined;
+  if (resolved === null) {
+    if (!requested) return null;
+    delete chatBody.reasoning_effort;
+    return { from: requested, to: "none", subagent };
+  }
+  if (!requested || !isCodexReasoningEffort(requested)) return null;
+  if (codexEffortRank(requested) <= codexEffortRank(resolved)) return null;
+  chatBody.reasoning_effort = resolved;
+  return { from: requested, to: resolved, subagent };
+}
+
 export function applyPinnedEffort(
   parsed: OcxParsedRequest,
   route: { provider: OcxProviderConfig; modelId: string },

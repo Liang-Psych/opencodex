@@ -127,6 +127,30 @@ describe("management API pinned reasoning effort configuration", () => {
     expect(provider.pinnedReasoningEffort).toBe("high");
     expect(provider.modelPinnedReasoningEfforts).toEqual({ "model-a": "max", "model-b": "low" });
 
+    // Updating with whitespace key normalizes to trimmed model id
+    const wsReq = new Request("http://localhost/api/providers?name=custom", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modelPinnedReasoningEfforts: { "  model-c  ": "medium" },
+      }),
+    });
+    const wsRes = await handleManagementAPI(wsReq, new URL(wsReq.url), config);
+    expect(wsRes?.status).toBe(200);
+    expect(config.providers.custom.modelPinnedReasoningEfforts).toEqual({ "model-a": "max", "model-b": "low", "model-c": "medium" });
+
+    // Clearing a model pinned effort with whitespace key
+    const wsClearReq = new Request("http://localhost/api/providers?name=custom", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modelPinnedReasoningEfforts: { "  model-c  ": null },
+      }),
+    });
+    const wsClearRes = await handleManagementAPI(wsClearReq, new URL(wsClearReq.url), config);
+    expect(wsClearRes?.status).toBe(200);
+    expect(config.providers.custom.modelPinnedReasoningEfforts).toEqual({ "model-a": "max", "model-b": "low" });
+
     // Clearing a model pinned effort
     const clearReq = new Request("http://localhost/api/providers?name=custom", {
       method: "PATCH",
@@ -187,3 +211,29 @@ describe("management API pinned reasoning effort configuration", () => {
   });
 });
 import { ManagementRequest as Request } from "./helpers/management-auth";
+
+describe("native chat completions effort policy", () => {
+  const { chatCollabSurface, applyChatEffortCap } = require("../src/server/effort-policy");
+
+  test("detects v2 collab surface in native chat tools", () => {
+    const chatBody = {
+      tools: [
+        { type: "function", function: { name: "spawn_agent" } },
+        { type: "function", function: { name: "send_message" } },
+      ],
+    };
+    expect(chatCollabSurface(chatBody)).toBe("v2");
+  });
+
+  test("applyChatEffortCap respects effortCap ceiling over pinned effort", () => {
+    const config = {
+      effortCap: "low",
+    };
+    const chatBody = {
+      reasoning_effort: "max",
+    };
+    const rewrite = applyChatEffortCap(chatBody, new Headers(), config, ["low", "medium", "high", "max"]);
+    expect(rewrite).toEqual({ from: "max", to: "low", subagent: false });
+    expect(chatBody.reasoning_effort).toBe("low");
+  });
+});

@@ -6,7 +6,7 @@ import {
   collectChatCompletion,
   isChatCompletionsStreamError,
 } from "../chat/outbound";
-import { resolvePinnedEffort } from "./effort-policy";
+import { applyChatEffortCap, chatCollabSurface, effortCapAppliesTo, resolvePinnedEffort, supportedLadderFor } from "./effort-policy";
 import {
   classifyError,
   cyberPolicyErrorType,
@@ -158,6 +158,14 @@ export async function handleNativeChatCompletions(options: HandleNativeChatOptio
     logCtx.requestedEffort = typeof options.chatBody.reasoning_effort === "string"
       ? options.chatBody.reasoning_effort
       : undefined;
+  }
+
+  const surface = chatCollabSurface(options.chatBody);
+  if (effortCapAppliesTo(surface, req.headers, config)) {
+    const capped = applyChatEffortCap(options.chatBody, req.headers, config, supportedLadderFor(route));
+    if (capped) {
+      logCtx.requestedEffort = `${logCtx.requestedEffort ?? capped.from}->${capped.to}`;
+    }
   }
   logCtx.requestedServiceTier = typeof options.chatBody.service_tier === "string"
     ? options.chatBody.service_tier
