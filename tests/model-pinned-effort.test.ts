@@ -172,6 +172,18 @@ describe("management API pinned reasoning effort configuration", () => {
     const getRes = await handleManagementAPI(getReq, new URL(getReq.url), config);
     const data = await getRes?.json() as { modelPinnedEfforts: Record<string, string> };
     expect(data.modelPinnedEfforts).toEqual({ "gpt-5.5": "max", "claude-sonnet-4-6": "high" });
+
+    // Partial merge: add one model, clear another
+    const updateReq = new Request("http://localhost/api/effort-caps", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modelPinnedEfforts: { "gemini-3.7-flash": "high", "gpt-5.5": null },
+      }),
+    });
+    const updateRes = await handleManagementAPI(updateReq, new URL(updateReq.url), config);
+    expect(updateRes?.status).toBe(200);
+    expect(config.modelPinnedEfforts).toEqual({ "claude-sonnet-4-6": "high", "gemini-3.7-flash": "high" });
   });
 });
 import { ManagementRequest as Request } from "./helpers/management-auth";

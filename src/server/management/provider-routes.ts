@@ -33,7 +33,7 @@ import {
   submitManualLoginCode,
   upsertOAuthProvider,
 } from "../../oauth";
-import { isCodexReasoningEffort } from "../../reasoning-effort";
+import { isDeclaredReasoningEffort } from "../../reasoning-effort";
 import { replaceProviderAccountSet } from "../../oauth/store";
 import { providerDestinationResolvedError } from "../../lib/destination-policy";
 import { reconcileLiveStateStores } from "../../lib/state-store-registrations";
@@ -473,7 +473,7 @@ function applyProviderPatchFields(
     const value = rawBody.pinnedReasoningEffort;
     if (value === null || value === "") {
       delete next.pinnedReasoningEffort;
-    } else if (typeof value === "string" && (isCodexReasoningEffort(value) || value === "none" || value === "minimal")) {
+    } else if (typeof value === "string" && isDeclaredReasoningEffort(value)) {
       next.pinnedReasoningEffort = value;
     } else {
       return { error: "pinnedReasoningEffort must be a valid reasoning effort or null" };
@@ -493,7 +493,7 @@ function applyProviderPatchFields(
           delete efforts[model];
           continue;
         }
-        if (typeof effort !== "string" || (!isCodexReasoningEffort(effort) && effort !== "none" && effort !== "minimal")) {
+        if (typeof effort !== "string" || !isDeclaredReasoningEffort(effort)) {
           return { error: `invalid reasoning effort "${String(effort)}" for model "${model}"` };
         }
         efforts[model] = effort;

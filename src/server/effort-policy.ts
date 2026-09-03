@@ -14,7 +14,7 @@
  */
 import type { OcxConfig, OcxParsedRequest, OcxProviderConfig } from "../types";
 import { modelInList } from "../types";
-import { codexEffortRank, configuredReasoningEfforts, isCodexReasoningEffort, modelRecordValue } from "../reasoning-effort";
+import { codexEffortRank, configuredReasoningEfforts, isCodexReasoningEffort, isDeclaredReasoningEffort, modelRecordValue } from "../reasoning-effort";
 import { catalogModelEfforts } from "../codex/catalog";
 
 /**
@@ -206,16 +206,16 @@ export function resolvePinnedEffort(
   const prov = route.provider;
   const rawProvModel = modelRecordValue(prov.modelPinnedReasoningEfforts, route.modelId)
     ?? (parsedModelId ? modelRecordValue(prov.modelPinnedReasoningEfforts, parsedModelId) : undefined);
-  if (rawProvModel && (isCodexReasoningEffort(rawProvModel) || rawProvModel === "none" || rawProvModel === "minimal")) {
+  if (rawProvModel && isDeclaredReasoningEffort(rawProvModel)) {
     return rawProvModel;
   }
-  if (prov.pinnedReasoningEffort && (isCodexReasoningEffort(prov.pinnedReasoningEffort) || prov.pinnedReasoningEffort === "none" || prov.pinnedReasoningEffort === "minimal")) {
+  if (prov.pinnedReasoningEffort && isDeclaredReasoningEffort(prov.pinnedReasoningEffort)) {
     return prov.pinnedReasoningEffort;
   }
   if (config?.modelPinnedEfforts) {
     const rawGlobal = modelRecordValue(config.modelPinnedEfforts, route.modelId)
       ?? (parsedModelId ? modelRecordValue(config.modelPinnedEfforts, parsedModelId) : undefined);
-    if (rawGlobal && (isCodexReasoningEffort(rawGlobal) || rawGlobal === "none" || rawGlobal === "minimal")) {
+    if (rawGlobal && isDeclaredReasoningEffort(rawGlobal)) {
       return rawGlobal;
     }
   }
